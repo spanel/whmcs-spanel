@@ -83,6 +83,10 @@ function ptspanel_ALL($params) {
                                                     )),
                               $phiopts);
       if ($res[0] != 200) { $result = "ERROR: $res[0] - $res[1]"; break; }
+
+      if ($action == 'terminate')
+        mysql_query("UPDATE tblhosting SET subscriptionid='' WHERE id=$hid");
+
       $result = "success"; break;
     }
 
