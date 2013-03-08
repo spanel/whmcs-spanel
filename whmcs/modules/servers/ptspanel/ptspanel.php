@@ -19,7 +19,7 @@ function ptspanel_ALL($params) {
 
   // $urlp = "https://spanel.info/api/Spanel/License/Server/create_license;debug".json_encode(array($params)),
   $urlp = "https://spanel.info/api/Spanel/License/Server";
-  $np = "Performed by WHMCS module ptspanel, admin=(id=$_SESSION[adminid]), service ID=$hid"; // noteprefix
+  $np = "Performed by WHMCS module ptspanel, admin=(id=$_SESSION[adminid]), ip=$_SERVER[REMOTE_ADDR], service ID=$hid"; // noteprefix
 
   # phi client options
   $phiopts = array(
