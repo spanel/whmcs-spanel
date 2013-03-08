@@ -75,7 +75,7 @@ function ptspanel_ALL($params) {
       $result = "success"; break;
     }
 
-    if ($action == 'terminate' || $action == 'suspend' || $action == 'unsuspend') {
+    if ($action == 'suspend' || $action == 'unsuspend') {
       $res = phi_http_request("call", "$urlp/{$action}_license",
                               array("args" => array(
                                                     "id"     => $lid,
@@ -83,9 +83,19 @@ function ptspanel_ALL($params) {
                                                     )),
                               $phiopts);
       if ($res[0] != 200) { $result = "ERROR: $res[0] - $res[1]"; break; }
+      $result = "success"; break;
+    }
 
-      if ($action == 'terminate')
-        mysql_query("UPDATE tblhosting SET subscriptionid='' WHERE id=$hid");
+    if ($action == 'terminate') {
+      $res = phi_http_request("call", "$urlp/delete_license",
+                              array("args" => array(
+                                                    "id"     => $lid,
+                                                    "reason" => "$np",
+                                                    )),
+                              $phiopts);
+      if ($res[0] != 200) { $result = "ERROR: $res[0] - $res[1]"; break; }
+
+      mysql_query("UPDATE tblhosting SET subscriptionid='' WHERE id=$hid");
 
       $result = "success"; break;
     }
