@@ -4,9 +4,9 @@ require_once "phi_access_http_client.inc.php";
 
 function ptspanel_ConfigOptions() {
   $configarray = array(
-                       "user"    => array( "Type" => "text", "Size" => "32", "Description" => "spanel.info reseller account username"),
-                       "pass"    => array( "Type" => "text", "Size" => "32", "Description" => "spanel.info reseller account password"),
-                       "product" => array( "Type" => "text", "Size" => "64", "Description" => "product name"),
+                       "user"    => array( "Type" => "text", "Size" => "32", "Description" => "spanel.info reseller account username"), # configoption1
+                       "pass"    => array( "Type" => "text", "Size" => "32", "Description" => "spanel.info reseller account password"), # configoption2
+                       "product" => array( "Type" => "text", "Size" => "64", "Description" => "product name"), # configoption3
                        );
   return $configarray;
 }
