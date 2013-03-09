@@ -1,5 +1,39 @@
 <?php
 
+# WHMCS provisioning module for PT Spanel's products (mostly Spanel licenses)
+#
+# Version: 0.01
+#
+# This software is copyright (c) 2013 by PT Spanel (contact: <info@spanel.info>)
+#
+# This is free software; you can redistribute it and/or modify it under the
+# Artistic License 2.0.
+#
+# Installation instruction:
+#
+# 1. Obtain a reseller account from <licensing@spanel.info>.
+#
+# 1. Upload the ptspanel/ directory into the modules/servers/ folder of your
+#    WHMCS installation.
+#
+# 2. Create two products, e.g. called "Spanel physical server license" and
+#    "Spanel VPS license". Set the module for these products to "ptspanel". Fill
+#    out the reseller username and password given in step #1. Also fill the
+#    product name, which must be exactly "Spanel physical server license" for
+#    the first one, and "Spanel VPS license" for the second one.
+#
+# 3. That's it. Now clients just need to order from your WHMCS installation.
+#    When the order is processed and the product is created, license ID will
+#    appear in the Subscription ID field in the product page. This license ID
+#    can be used to install Spanel (see http://spanel.info/ on Spanel
+#    installation instruction).
+#
+# 4. To reset the license IP (e.g. the server changes IP or you want to reuse
+#    the license to another machine), you can press the [Create] button again.
+#    To prevent abuse, there is a limit on the number of IP resets you can do.
+#
+# For questions/support, please contact <support@spanel.info>.
+
 require_once "phi_access_http_client.inc.php";
 
 function ptspanel_ConfigOptions() {
@@ -129,14 +163,7 @@ function ptspanel_Renew($params)            { ptspanel_ALL($params); }
 
 # AdminArea
 
-function ptspanel_LoginLink($params) {
-  if ($params["serversecure"]) {
-    $http="https";
-  } else {
-    $http="http";
-  }
-  #echo("<a href=\"".$http."://".$params["serverip"]."/spanel/spanel.cgi\" target=\"_blank\" style=\"color:#cc0000\">login to control panel</a>");
-}
+# LoginLink
 
 # ClientAreaCustomButtonArray
 
