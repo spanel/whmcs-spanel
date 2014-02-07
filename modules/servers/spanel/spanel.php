@@ -1,5 +1,7 @@
 <?php
 
+if (!extension_loaded('yaml')) die('This module requires the "yaml" PHP extension, please enable it first in your php.ini');
+
 /*
 ************************************************************************************
 *************************** WHMCS Server Module Template ***************************
