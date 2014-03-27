@@ -12,12 +12,35 @@ You should then replace all occurrences of servertemplate with the new filename.
 ************************************************************************************
 */
 
+# old = before 1.3.16
+
 require_once "HTTP/Client.php";
+require_once "phi_access_http_client.inc.php";
+
+function _detect_api_version($serverip) {
+	$cli = new HTTP_Client();
+        $respcode = $cli->get("http://$serverip/?info=1");
+	if ($respcode == 200) {
+          $resp = $cli->currentResponse();
+          if (preg_match('#SPANEL_API_VERSION=1#', $resp['body'], $m)) return 'new';
+        }
+        return 'old';
+}
+
+function _spanel_api($ip, $user, $pass, $module, $func, $args=array()) {
+	if (!$ip) return array(400, "BUG: no server IP address, please check your WHMCS servers configuration");
+        return phi_http_request("call",
+                                "https://$ip:1010/api/$module/$func",
+                                array("args"=>$args),
+                                array("ssl_verify_peer"=>0, "user"=>$user, "password"=>$pass));
+}
+
+### BEGIN OLD CODE
 
 # given a server IP, returns the spanel hostname for it. or, returns a negative
 # number on error
 
-function _spanel_gethostname($serverip) {
+function _spanelold_gethostname($serverip) {
 	$cli = new HTTP_Client();
 
         # assume spanel is in http://IP/
@@ -40,7 +63,7 @@ function _spanel_gethostname($serverip) {
 # doc/api0.pod for API response examples. or, returns a negative number on
 # error.
 
-function _spanel_api0_hostname($hostname, $secure, $user, $pass, $func, $args=array()) {
+function _spanelold_api0_hostname($hostname, $secure, $user, $pass, $func, $args=array()) {
 	$cli = new HTTP_Client();
 	$params = "user=".urlencode($user).
 		"&pass=".urlencode($pass).
@@ -55,20 +78,22 @@ function _spanel_api0_hostname($hostname, $secure, $user, $pass, $func, $args=ar
 	if (preg_match('/^Error at/', $yaml_result)) {
 		return array('status'=>500, 'message'=>"API response returns invalid YAML", 'raw_output'=>$resp['body']);
 	}
-	$yaml_result['_spanel_hostname'] = $hostname;
+	$yaml_result['_spanelold_hostname'] = $hostname;
         return $yaml_result;
 }
 
 # invokes API function on an spanel panel. returns API response structure. see
 # doc/api0.pod for API response examples.
 
-function _spanel_api0_ip($ip, $secure, $user, $pass, $func, $args=array()) {
+function _spanelold_api0_ip($ip, $secure, $user, $pass, $func, $args=array()) {
 	if (!$ip) return array('status'=>400, 'message'=>"No IP supplied");
-	$hostname = _spanel_gethostname($ip);
+	$hostname = _spanelold_gethostname($ip);
 	if ($hostname < 0) return array('status'=>-$hostname, 'message'=>"Cannot find Spanel hostname, please check whether https://$ip/ or https://$ip/spanel/spanel.cgi is an Spanel login page and accessible");
 	#print($hostname);
-	return _spanel_api0_hostname($hostname, $secure, $user, $pass, $func, $args);
+	return _spanelold_api0_hostname($hostname, $secure, $user, $pass, $func, $args);
 }
+
+### END OLD CODE
 
 ###
 
@@ -95,10 +120,33 @@ function spanel_CreateAccount($params) {
 	$clientsdetails = $params["clientsdetails"];
 	# Code to perform action goes here...
 
+        if (_detect_api_version($serverip) == 'new') {
+
+        #print_r($params);
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "create_account",
+                           array(
+                                 'domain' => $domain,
+                                 'plan' => $params['configoption1'],
+                                 'account' => $username,
+                                 'password' => $password,
+                                 'note' => "[Account created by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for client $clientsdetails[firstname] $clientsdetails[lastname] <$clientsdetails[email]> (ID $clientsdetails[userid]) from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
+                                 'extra_info' => $params,
+                                )
+                          );
+        #print_r($res);
+        if ($res[0] != 200) {
+          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+        } else {
+          $result = "success";
+        }
+  	return $result;
+
+        } else {
+
 	$result = "";
 	do {
 		#print_r($params);
-		$res = _spanel_api0_ip($serverip, $secure, $serverusername, $serverpassword, "create_account",
+		$res = _spanelold_api0_ip($serverip, $secure, $serverusername, $serverpassword, "create_account",
 				       array(
 					     'clientname' => preg_replace('/^\s+/', '', "$clientsdetails[firstname] $clientsdetails[lastname]"),
 					     'clientorganization' => ($clientsdetails['companyname'] ? $clientsdetails['companyname'] : "(no company)"),
@@ -120,7 +168,7 @@ function spanel_CreateAccount($params) {
 				       );
 		#print_r($res);
 		if (!$res || !$res['status']) {
-			$result = "BUG: bug in spanel.php: invalid return value from spanel_api0_ip() function: res=$res";
+			$result = "BUG: bug in spanelold.php: invalid return value from spanelold_api0_ip() function: res=$res";
 			break;
 		}
 		if ($res['status'] != 200) {
@@ -134,6 +182,8 @@ function spanel_CreateAccount($params) {
 	} while (0);
 
 	return $result;
+
+        }
 }
 
 function spanel_TerminateAccount($params) {
@@ -147,10 +197,29 @@ function spanel_TerminateAccount($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
+        if (_detect_api_version($serverip) == 'new') {
+
+        #print_r($params);
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "delete_account",
+                           array(
+                                 'account' => $username,
+                                 'note' => "[Account deleted by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
+                                 )
+                           );
+        #print_r($res);
+        if ($res[0] != 200) {
+          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+        } else {
+          $result = "success";
+        }
+	return $result;
+
+        } else {
+
 	$result = "";
 	do {
 		#print_r($params);
-		$res = _spanel_api0_ip($serverip, $secure, $serverusername, $serverpassword, "delete_account",
+		$res = _spanelold_api0_ip($serverip, $secure, $serverusername, $serverpassword, "delete_account",
 				       array(
 					     'username' => $username,
 					     'reason' => "[Account deleted by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
@@ -159,7 +228,7 @@ function spanel_TerminateAccount($params) {
 				       );
 		#print_r($res);
 		if (!$res || !$res['status']) {
-			$result = "BUG: bug in spanel.php: invalid return value from spanel_api0_ip() function: res=$res";
+			$result = "BUG: bug in spanelold.php: invalid return value from spanelold_api0_ip() function: res=$res";
 			break;
 		}
 		elseif ($res['status'] != 200) {
@@ -173,6 +242,8 @@ function spanel_TerminateAccount($params) {
 	} while (0);
 
 	return $result;
+
+        }
 }
 
 function spanel_SuspendAccount($params) {
@@ -186,10 +257,29 @@ function spanel_SuspendAccount($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
+        if (_detect_api_version($serverip) == 'new') {
+
+        #print_r($params);
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "disable_account",
+                           array(
+                                 'account' => $username,
+                                 'note' => "[Account suspended by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
+                                 )
+                           );
+        #print_r($res);
+        if ($res[0] != 200) {
+          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+        } else {
+          $result = "success";
+        }
+	return $result;
+
+        } else {
+
 	$result = "";
 	do {
 		#print_r($params);
-		$res = _spanel_api0_ip($serverip, $secure, $serverusername, $serverpassword, "suspend_account",
+		$res = _spanelold_api0_ip($serverip, $secure, $serverusername, $serverpassword, "suspend_account",
 				       array(
 					     'username' => $username,
 					     'reason' => "[Account suspended by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
@@ -198,7 +288,7 @@ function spanel_SuspendAccount($params) {
 				       );
 		#print_r($res);
 		if (!$res || !$res['status']) {
-			$result = "BUG: bug in spanel.php: invalid return value from spanel_api0_ip() function: res=$res";
+			$result = "BUG: bug in spanelold.php: invalid return value from spanelold_api0_ip() function: res=$res";
 			break;
 		}
 		elseif ($res['status'] != 200) {
@@ -212,6 +302,8 @@ function spanel_SuspendAccount($params) {
 	} while (0);
 
 	return $result;
+
+        }
 }
 
 function spanel_UnsuspendAccount($params) {
@@ -225,10 +317,29 @@ function spanel_UnsuspendAccount($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
+        if (_detect_api_version($serverip) == 'new') {
+
+        #print_r($params);
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "enable_account",
+                           array(
+                                 'account' => $username,
+                                 #'note' => "[Account unsuspended by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
+                                 )
+                           );
+        #print_r($res);
+        if ($res[0] != 200) {
+          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+        } else {
+          $result = "success";
+        }
+	return $result;
+
+        } else {
+
 	$result = "";
 	do {
 		#print_r($params);
-		$res = _spanel_api0_ip($serverip, $secure, $serverusername, $serverpassword, "unsuspend_account",
+		$res = _spanelold_api0_ip($serverip, $secure, $serverusername, $serverpassword, "unsuspend_account",
 				       array(
 					     'username' => $username,
 					     'reason' => "[Account unsuspended by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
@@ -237,7 +348,7 @@ function spanel_UnsuspendAccount($params) {
 				       );
 		#print_r($res);
 		if (!$res || !$res['status']) {
-			$result = "BUG: bug in spanel.php: invalid return value from spanel_api0_ip() function: res=$res";
+			$result = "BUG: bug in spanelold.php: invalid return value from spanelold_api0_ip() function: res=$res";
 			break;
 		}
 		elseif ($res['status'] != 200) {
@@ -251,6 +362,8 @@ function spanel_UnsuspendAccount($params) {
 	} while (0);
 
 	return $result;
+
+        }
 }
 
 function spanel_ChangePassword($params) {
@@ -264,10 +377,30 @@ function spanel_ChangePassword($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
+        if (_detect_api_version($serverip) == 'new') {
+
+        #print_r($params);
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "change_account_password",
+                           array(
+                                 'account' => $username,
+                                 'password' => $password,
+                                 #'note' => "[Account password changed by WHMCS Spanel module on ".date("D M j G:i:s T Y")." for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
+                                 )
+                           );
+        #print_r($res);
+        if ($res[0] != 200) {
+          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+        } else {
+          $result = "success";
+        }
+	return $result;
+
+        } else {
+
 	$result = "";
 	do {
 		#print_r($params);
-		$res = _spanel_api0_ip($serverip, $secure, $serverusername, $serverpassword, "change_account_password",
+		$res = _spanelold_api0_ip($serverip, $secure, $serverusername, $serverpassword, "change_account_password",
 				       array(
 					     'username' => $username,
 					     'clientpassword' => $password,
@@ -277,7 +410,7 @@ function spanel_ChangePassword($params) {
 				       );
 		#print_r($res);
 		if (!$res || !$res['status']) {
-			$result = "BUG: bug in spanel.php: invalid return value from spanel_api0_ip() function: res=$res";
+			$result = "BUG: bug in spanelold.php: invalid return value from spanelold_api0_ip() function: res=$res";
 			break;
 		}
 		elseif ($res['status'] != 200) {
@@ -291,6 +424,8 @@ function spanel_ChangePassword($params) {
 	} while (0);
 
 	return $result;
+
+        }
 }
 
 function spanel_ChangePackage($params) {
@@ -303,10 +438,30 @@ function spanel_ChangePackage($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
+        if (_detect_api_version($serverip) == 'new') {
+
+        #print_r($params);
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "set_account_plan",
+                           array(
+                                 'account' => $username,
+                                 'plan' => $params['configoption1'],
+                                 #'note' => "[Account plan changed by WHMCS Spanel module on ".date("D M j G:i:s T Y")." to plan $packageid for account ID $accountid from IP $_SERVER[REMOTE_ADDR] browser $_SERVER[HTTP_USER_AGENT]]",
+                                 )
+                           );
+        #print_r($res);
+        if ($res[0] != 200) {
+          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+        } else {
+          $result = "success";
+        }
+	return $result;
+
+        } else {
+
 	$result = "";
 	do {
 		#print_r($params);
-		$res = _spanel_api0_ip($serverip, $secure, $serverusername, $serverpassword, "change_account_plan",
+		$res = _spanelold_api0_ip($serverip, $secure, $serverusername, $serverpassword, "change_account_plan",
 				       array(
 					     'username' => $username,
 					     'plan' => $params['configoption1'],
@@ -316,7 +471,7 @@ function spanel_ChangePackage($params) {
 				       );
 		#print_r($res);
 		if (!$res || !$res['status']) {
-			$result = "BUG: bug in spanel.php: invalid return value from spanel_api0_ip() function: res=$res";
+			$result = "BUG: bug in spanelold.php: invalid return value from spanelold_api0_ip() function: res=$res";
 			break;
 		}
 		elseif ($res['status'] != 200) {
@@ -330,6 +485,8 @@ function spanel_ChangePackage($params) {
 	} while (0);
 
 	return $result;
+
+        }
 }
 
 function spanel_LoginLink($params) {
