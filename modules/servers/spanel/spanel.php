@@ -17,14 +17,25 @@ You should then replace all occurrences of servertemplate with the new filename.
 require_once "HTTP/Client.php";
 require_once "phi_access_http_client.inc.php";
 
-function _detect_api_version($serverip) {
-	$cli = new HTTP_Client();
-        $respcode = $cli->get("http://$serverip/?info=1");
-	if ($respcode == 200) {
-          $resp = $cli->currentResponse();
-          if (preg_match('#SPANEL_API_VERSION=1#', $resp['body'], $m)) return 'new';
-        }
-        return 'old';
+function detect_spanel($serverip) {
+  $cli = new HTTP_Client();
+  $respcode = $cli->get("http://$serverip/?info=1");
+  if ($respcode == 200) {
+    $resp = $cli->currentResponse();
+    if (preg_match('#SPANEL_URL=(.+)#', $resp['body'], $m)) {
+      $data = array('is_spanel' => true, 'spanel_url' => $m[1]);
+      if (preg_match('#SPANEL_API_VERSION=(.+)#', $resp['body'], $m)) {
+        $data['spanel_api_version'] = $m[1];
+      } else {
+        $data['spanel_api_version'] = 0;
+      }
+      return array(200, "OK", $data);
+    } else {
+      return array(200, "OK", array('is_spanel' => false));
+    }
+  } else {
+    return array($respcode, "Network error");
+  }
 }
 
 function _spanel_api($ip, $user, $pass, $module, $func, $args=array()) {
@@ -120,7 +131,10 @@ function spanel_CreateAccount($params) {
 	$clientsdetails = $params["clientsdetails"];
 	# Code to perform action goes here...
 
-        if (_detect_api_version($serverip) == 'new') {
+        $res = detect_spanel($serverip);
+        if ($res[0] != 200) {
+          $result = "ERROR: Can't detect spanel at $serverip: $res[0] - $res[1]";
+        } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
         $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "create_account",
@@ -197,7 +211,10 @@ function spanel_TerminateAccount($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
-        if (_detect_api_version($serverip) == 'new') {
+        $res = detect_spanel($serverip);
+        if ($res[0] != 200) {
+          $result = "ERROR: Can't detect spanel at $serverip: $res[0] - $res[1]";
+        } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
         $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "delete_account",
@@ -257,7 +274,10 @@ function spanel_SuspendAccount($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
-        if (_detect_api_version($serverip) == 'new') {
+        $res = detect_spanel($serverip);
+        if ($res[0] != 200) {
+          $result = "ERROR: Can't detect spanel at $serverip: $res[0] - $res[1]";
+        } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
         $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "disable_account",
@@ -317,7 +337,10 @@ function spanel_UnsuspendAccount($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
-        if (_detect_api_version($serverip) == 'new') {
+        $res = detect_spanel($serverip);
+        if ($res[0] != 200) {
+          $result = "ERROR: Can't detect spanel at $serverip: $res[0] - $res[1]";
+        } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
         $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "enable_account",
@@ -377,7 +400,10 @@ function spanel_ChangePassword($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
-        if (_detect_api_version($serverip) == 'new') {
+        $res = detect_spanel($serverip);
+        if ($res[0] != 200) {
+          $result = "ERROR: Can't detect spanel at $serverip: $res[0] - $res[1]";
+        } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
         $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "change_account_password",
@@ -438,7 +464,10 @@ function spanel_ChangePackage($params) {
 	$accountid = $params["accountid"];
 	$packageid = $params["packageid"];
 
-        if (_detect_api_version($serverip) == 'new') {
+        $res = detect_spanel($serverip);
+        if ($res[0] != 200) {
+          $result = "ERROR: Can't detect spanel at $serverip: $res[0] - $res[1]";
+        } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
         $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "set_account_plan",
