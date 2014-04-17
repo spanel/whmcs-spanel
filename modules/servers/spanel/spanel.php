@@ -406,7 +406,7 @@ function spanel_ChangePassword($params) {
         } elseif ($res[2]['spanel_api_version']) { # new
 
         #print_r($params);
-        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "change_account_password",
+        $res = _spanel_api($serverip, $serverusername, $serverpassword, "account.shared.modify", "set_account_password",
                            array(
                                  'account' => $username,
                                  'password' => $password,
