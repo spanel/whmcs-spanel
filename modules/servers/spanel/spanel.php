@@ -235,7 +235,7 @@ function spanel_TerminateAccount($params) {
                            );
         #print_r($res);
         if ($res[0] != 200) {
-          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+          $result = _fmt_rinci_err($res);
         } else {
           $result = "success";
         }
@@ -298,7 +298,7 @@ function spanel_SuspendAccount($params) {
                            );
         #print_r($res);
         if ($res[0] != 200) {
-          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+          $result = _fmt_rinci_err($res);
         } else {
           $result = "success";
         }
@@ -361,7 +361,7 @@ function spanel_UnsuspendAccount($params) {
                            );
         #print_r($res);
         if ($res[0] != 200) {
-          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+          $result = _fmt_rinci_err($res);
         } else {
           $result = "success";
         }
@@ -425,7 +425,7 @@ function spanel_ChangePassword($params) {
                            );
         #print_r($res);
         if ($res[0] != 200) {
-          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+          $result = _fmt_rinci_err($res);
         } else {
           $result = "success";
         }
@@ -489,7 +489,7 @@ function spanel_ChangePackage($params) {
                            );
         #print_r($res);
         if ($res[0] != 200) {
-          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+          $result = _fmt_rinci_err($res);
         } else {
           $result = "success";
         }
