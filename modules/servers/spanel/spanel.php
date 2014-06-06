@@ -117,6 +117,16 @@ function spanel_ConfigOptions() {
 	return $configarray;
 }
 
+function _fmt_rinci_err($res) {
+  $msg = "ERROR: API function did not return success: $res[0] - $res[1]";
+  $prev = $res;
+  while (isset($prev[3]) && $prev[3]['prev']) {
+    $msg .= ": $prev[0] - $prev[1]";
+    $prev = $res[3]['prev'];
+  }
+  return $msg;
+}
+
 function spanel_CreateAccount($params) {
 	$serverip = $params["serverip"];
 	$serverusername = $params["serverusername"];
@@ -149,7 +159,7 @@ function spanel_CreateAccount($params) {
                           );
         #print_r($res);
         if ($res[0] != 200) {
-          $result = "ERROR: API function did not return success: $res[0] - $res[1]";
+          $result = _fmt_rinci_err($res);
         } else {
           $result = "success";
         }
