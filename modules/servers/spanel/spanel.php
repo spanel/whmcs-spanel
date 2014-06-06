@@ -121,8 +121,8 @@ function _fmt_rinci_err($res) {
   $msg = "ERROR: API function did not return success: $res[0] - $res[1]";
   $prev = $res;
   while (isset($prev[3]) && $prev[3]['prev']) {
-    $msg .= ": $prev[0] - $prev[1]";
     $prev = $res[3]['prev'];
+    $msg .= ": $prev[0] - $prev[1]";
   }
   return $msg;
 }
