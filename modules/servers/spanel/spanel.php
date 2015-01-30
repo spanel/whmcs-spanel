@@ -40,10 +40,12 @@ function detect_spanel($serverip) {
 
 function _spanel_api($ip, $user, $pass, $module, $func, $args=array()) {
 	if (!$ip) return array(400, "BUG: no server IP address, please check your WHMCS servers configuration");
-        return phi_http_request("call",
+        $res = phi_http_request("call",
                                 "https://$ip:1010/api/$module/$func",
                                 array("args"=>$args),
                                 array("ssl_verify_peer"=>0, "user"=>$user, "password"=>$pass));
+        $res[3]['spanel.ip'] = $ip;
+        return $res;
 }
 
 ### BEGIN OLD CODE
@@ -124,6 +126,7 @@ function _fmt_rinci_err($res) {
     $prev = $res[3]['prev'];
     $msg .= ": $prev[0] - $prev[1]";
   }
+  $msg .= " (spanel ip=".$res[3]['spanel.ip'].")";
   return $msg;
 }
 
