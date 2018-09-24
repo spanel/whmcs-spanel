@@ -15,7 +15,7 @@ You should then replace all occurrences of servertemplate with the new filename.
 # old = before 1.3.16
 
 require_once "HTTP/Client.php";
-require_once "phi_access_http_client.inc.php";
+require_once __DIR__ . "/../../../includes/phi_access_http_client.inc.php";
 
 function detect_spanel($serverip) {
   $cli = new HTTP_Client();
