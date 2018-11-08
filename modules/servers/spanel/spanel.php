@@ -1,18 +1,12 @@
 <?php
 
-if (!extension_loaded('yaml')) die('This module requires the "yaml" PHP extension, please enable it first in your php.ini');
+if (!defined("WHMCS")) {
+  die("This file cannot be accessed directly");
+}
 
-/*
-************************************************************************************
-*************************** WHMCS Server Module Template ***************************
-************************************************************************************
-You will need to rename this file to be the name of the module you are creating.
-You should then replace all occurrences of servertemplate with the new filename.
-************************************************************************************
-************************************************************************************
-*/
-
-# old = before 1.3.16
+if (!extension_loaded('yaml')) {
+  die('This module requires the "yaml" PHP extension, please enable it first in your php.ini');
+}
 
 require_once "HTTP/Client.php";
 require_once __DIR__ . "/../../../includes/phi_access_http_client.inc.php";
@@ -109,6 +103,18 @@ function _spanelold_api0_ip($ip, $secure, $user, $pass, $func, $args=array()) {
 ### END OLD CODE
 
 ###
+
+function spanel_MetaData() {
+  return array(
+               'DisplayName' => 'Spanel',
+               'APIVersion' => '1.1',
+               'RequiresServer' => true,
+               'DefaultNonSSLPort' => '0',
+               'DefaultSSLPort' => '1010',
+               'ServiceSingleSignOnLabel' => 'Login to Spanel as User',
+               'AdminSingleSignOnLabel' => 'Login to Spanel as Admin',
+               );
+}
 
 function spanel_ConfigOptions() {
 	$configarray = array(
@@ -538,6 +544,75 @@ function spanel_LoginLink($params) {
 		$http="http";
 	}
 	echo("<a href=\"".$http."://".$params["serverip"]."/spanel/spanel.cgi\" target=\"_blank\" style=\"color:#cc0000\">login to control panel</a>");
+}
+
+function spanel_ClientArea($params) {
+  return array(
+               'tabOverviewModuleOutputTemplate' => 'templates/loginbuttons.tpl',
+               'templateVariables' => array(
+                                            ),
+               );
+}
+
+function spanel_ServiceSingleSignOn($params) {
+  global $SPANEL_API_USER;
+  global $SPANEL_API_PASSWORD;
+
+  if (!isset($SPANEL_API_USER) || !isset($SPANEL_API_PASSWORD)) {
+    return array('success' => false, 'errorMsg' => 'Spanel API user/password not defined');
+  }
+
+  $res = detect_spanel($params['serverip']);
+  if ($res[0] != 200) {
+    return array('success' => false, 'errorMsg' => "Can't detect spanel at IP $params[serverip]: $res[0] - $res[1]");
+  }
+  if (!$res[2]['is_spanel']) {
+    return array('success' => false, 'errorMsg' => "Server at IP $params[serverip] is not Spanel");
+  }
+
+  $spanel_admin_user = "";
+  if ($_SESSION['adminid']) {
+    $mysqlres = mysql_query("SELECT username,notes FROM tbladmins WHERE id=$_SESSION[adminid]") or die("BUG:20181108-1:".mysql_error());
+    $row = mysql_fetch_row($mysqlres);
+    $admin_username = $row[0];
+    if (preg_match('/adminuser=(\w+)/', $row[1], $m)) $spanel_admin_user = $m[1];
+  }
+
+  $spanel_url = preg_replace('/^http:/', 'https:', $res[2]['spanel_url']);
+  $spanel_url = preg_replace('#/$#', '', $spanel_url);
+  if(!$res[2]['spanel_api_version']) { # old
+    $res = _spanelold_api0_ip($spanel_ip, 1, $SPANEL_API_USER, $SPANEL_API_PASSWORD,
+                              "gen_login_token",
+                              array("username"=>$params['username'],
+                                    "ip"=>$_SERVER['REMOTE_ADDR'],
+                                    "admin_user"=>$spanel_admin_user)
+                              );
+    if (!$res || $res['status'] != 200) {
+      return array('success' => false, 'errorMsg' => "Can't get login token: ".print_r($res, 1));
+    }
+    $token = $res['output'];
+    if ($token < 0) {
+      return array('success' => false, 'errorMsg' => "Can't get login token, got $token");
+    }
+  } else {
+    $res = _spanel_api($params['serverip'], $SPANEL_API_USER, $SPANEL_API_PASSWORD,
+                       "tmp.wwwutil", "gen_login_token",
+                       array("account"=>$params['username'],
+                             "ip"=>$_SERVER['REMOTE_ADDR'],
+                             "admin_account"=>$spanel_admin_user)
+                       );
+    if ($res[0] != 200) {
+      return array('success' => false, 'errorMsg' => "Can't get login token: ".print_r($res, 1));
+    }
+    $token = $res[2];
+  }
+  logActivity("Login to Spanel: client ID=$params[userid], ".($spanel_admin_user ? ", admin_user=$spanel_admin_user":"").", serverip=$params[serverip], username=$params[username]", 0);
+  $login_note = "from Masterkey";
+  $url = "$spanel_url/login.html?token=$token&login_note=".urlencode($login_note);
+  return array(
+               'success' => true,
+               'redirectTo' => $url,
+               );
 }
 
 ?>
